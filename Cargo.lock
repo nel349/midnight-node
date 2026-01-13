@@ -7310,7 +7310,6 @@ dependencies = [
  "sp-session-validator-management",
  "sp-session-validator-management-query",
  "sp-sidechain",
- "sp-std",
  "sp-timestamp",
  "sqlx",
  "substrate-build-script-utils",
@@ -7379,7 +7378,6 @@ dependencies = [
  "sp-externalities",
  "sp-runtime",
  "sp-runtime-interface",
- "sp-std",
  "sp-tracing",
  "toml 0.9.5",
 ]
@@ -7523,7 +7521,6 @@ dependencies = [
  "sp-session-validator-management",
  "sp-sidechain",
  "sp-staking",
- "sp-std",
  "sp-storage",
  "sp-transaction-pool",
  "sp-version",
@@ -7706,7 +7703,6 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -7717,7 +7713,6 @@ dependencies = [
  "sp-api",
  "sp-consensus-beefy",
  "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -7783,7 +7778,6 @@ dependencies = [
  "sp-inherents",
  "sp-keyring",
  "sp-runtime",
- "sp-std",
  "sqlx",
  "thiserror 1.0.69",
  "tokio",
@@ -9535,7 +9529,6 @@ dependencies = [
  "sidechain-domain",
  "sp-core",
  "sp-io",
- "sp-std",
  "tempfile",
  "test-log",
 ]
@@ -9592,7 +9585,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -9613,7 +9605,6 @@ dependencies = [
  "sp-inherents",
  "sp-io",
  "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -9708,7 +9699,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
  "sp-tracing",
  "tempfile",
  "test-log",
@@ -9738,7 +9728,6 @@ dependencies = [
  "midnight-primitives",
  "parity-scale-codec",
  "scale-info",
- "sp-std",
 ]
 
 [[package]]
@@ -9972,7 +9961,6 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -12244,7 +12232,6 @@ dependencies = [
  "pallet-collective",
  "pallet-membership",
  "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
