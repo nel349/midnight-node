@@ -23,7 +23,7 @@ runs:
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
         chmod +x ./kubectl
         sudo mv ./kubectl /usr/local/bin/kubectl
-  
+
         # Install or update AWS CLI v2
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
         unzip -o awscliv2.zip
@@ -35,8 +35,9 @@ runs:
         KUBECONFIG_BASE64: ${{ env.kubeconfig_base64 }}
         K8S_SERVER: ${{ env.K8S_SERVER }}
         K8S_SA_TOKEN: ${{ env.K8S_SA_TOKEN }}
+        RUNNER_TEMP: ${{ runner.temp }}
       run: |
-        echo "${KUBECONFIG_BASE64}" | base64 --decode > ${{ runner.temp }}/kubeconfig.yaml
+        echo "${KUBECONFIG_BASE64}" | base64 --decode > "$RUNNER_TEMP/kubeconfig.yaml"
         kubectl config set-cluster my-cluster --server=${K8S_SERVER} --insecure-skip-tls-verify=true
         kubectl config set-credentials github-actions --token=${K8S_SA_TOKEN}
         kubectl config set-context my-context --cluster=my-cluster --user=github-actions --namespace=default
@@ -48,10 +49,12 @@ runs:
       with:
         name: manifest-sha-${{ inputs.sha }}
 
-    - name: Terminate Deployment 
+    - name: Terminate Deployment
+      env:
+        INPUT_SHA: ${{ inputs.sha }}
       run: |
-        kubectl delete -f manifest-sha-${{ inputs.sha }}.yaml 
-      shell: bash 
+        kubectl delete -f "manifest-sha-$INPUT_SHA.yaml"
+      shell: bash
 
     - name: Delete Deployments and Services Older Than 1 Hour
       run: |
@@ -80,7 +83,7 @@ runs:
 
           // Correct directory path relative to the repository root
           const directory = 'integration-testing';
-          
+
           // Full path to the target file (local filesystem)
           const targetFilePath = path.join('sidechains-argocd', directory, targetFile);
 
@@ -145,7 +148,7 @@ runs:
           if (Array.isArray(listResponse.data)) {
             for (const file of listResponse.data) {
               const fileName = file.name;
-              
+
               // Skip the target file since it's already handled
               if (fileName === targetFile) {
                 continue;

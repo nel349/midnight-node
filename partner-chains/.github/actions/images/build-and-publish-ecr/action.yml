@@ -19,9 +19,11 @@ runs:
         name: partner-chains-node-linux-artifact
 
     - name: Write Dockerfile
+      env:
+        INPUT_TAG: ${{ inputs.tag }}
       run: |
         cat > Dockerfile <<EOF
-        
+
         FROM ubuntu:24.04
         RUN apt-get update && apt-get install -y \
             ca-certificates \
@@ -32,15 +34,15 @@ runs:
             zlib1g \
             libgomp1 \
             && rm -rf /var/lib/apt/lists/*
-        
+
         RUN useradd -m -u 1010 -U -s /bin/sh -d /substrate substrate \
             && mkdir -p /data /substrate/.local/share/partner-chains-node \
             && chown -R substrate:substrate /data /substrate \
             && ln -s /data /substrate/.local/share/partner-chains-node
-        
-        COPY ./partner-chains-node-${{ inputs.tag }}-x86_64-linux /usr/local/bin/partner-chains-node
+
+        COPY ./partner-chains-node-${INPUT_TAG}-x86_64-linux /usr/local/bin/partner-chains-node
         RUN chown substrate:substrate /usr/local/bin/partner-chains-node && chmod +x /usr/local/bin/partner-chains-node
-        
+
         USER substrate
         EXPOSE 30333 9615 9933 9944
         VOLUME ["/data"]
@@ -50,8 +52,10 @@ runs:
       shell: bash
 
     - name: Build Docker Image
+      env:
+        INPUT_SHA: ${{ inputs.sha }}
       run: |
-        docker build -t substrate-node:${{ inputs.sha }} .
+        docker build -t "substrate-node:$INPUT_SHA" .
       shell: bash
 
     - name: Acquire AWS credentials
@@ -66,7 +70,10 @@ runs:
         registry: ${{ env.ECR_REGISTRY_SECRET }}
 
     - name: Push to ECR
+      env:
+        INPUT_SHA: ${{ inputs.sha }}
+        ECR_REGISTRY: ${{ env.ECR_REGISTRY_SECRET }}
       run: |
-        docker tag substrate-node:${{ inputs.sha }} ${{ env.ECR_REGISTRY_SECRET }}/partner-chains-node:${{ inputs.sha }}
-        docker push ${{ env.ECR_REGISTRY_SECRET }}/partner-chains-node:${{ inputs.sha }}
+        docker tag "substrate-node:$INPUT_SHA" "$ECR_REGISTRY/partner-chains-node:$INPUT_SHA"
+        docker push "$ECR_REGISTRY/partner-chains-node:$INPUT_SHA"
       shell: bash

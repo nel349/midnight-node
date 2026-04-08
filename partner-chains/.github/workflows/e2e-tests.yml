@@ -56,19 +56,27 @@ jobs:
         ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'master' }}
 
     - name: Set deployment_version as env variable
-      run: echo "DEPLOYMENT_VERSION=$(jq -r .deployment_version ./e2e-tests/config/substrate/${{ inputs.env }}_nodes.json)" >> $GITHUB_ENV
+      env:
+        INPUT_ENV: ${{ inputs.env }}
+      run: echo "DEPLOYMENT_VERSION=$(jq -r .deployment_version "./e2e-tests/config/substrate/${INPUT_ENV}_nodes.json")" >> $GITHUB_ENV
 
     - name: Set XRay variables
+      env:
+        INPUT_PLAN: ${{ inputs.plan }}
+        INPUT_EXECUTION: ${{ inputs.execution }}
       run: |
-        if [ ! -z "${{ inputs.plan }}" ]; then
-          echo "TEST_PLAN=${{ inputs.plan }}" >> $GITHUB_ENV
-        elif [ ! -z "${{ inputs.execution }}" ]; then
-          echo "TEST_EXECUTION=${{ inputs.execution }}" >> $GITHUB_ENV
+        if [ ! -z "$INPUT_PLAN" ]; then
+          echo "TEST_PLAN=$INPUT_PLAN" >> $GITHUB_ENV
+        elif [ ! -z "$INPUT_EXECUTION" ]; then
+          echo "TEST_EXECUTION=$INPUT_EXECUTION" >> $GITHUB_ENV
         fi
 
     - name: set report_to_xray env variable
+      env:
+        INPUT_PLAN: ${{ github.event.inputs.plan }}
+        INPUT_EXECUTION: ${{ github.event.inputs.execution }}
       run: |
-        echo "REPORT_TO_XRAY=$([[ -n '${{ github.event.inputs.plan }}' || -n '${{ github.event.inputs.execution }}' ]] && echo true || echo false )" >> $GITHUB_ENV
+        echo "REPORT_TO_XRAY=$([[ -n "$INPUT_PLAN" || -n "$INPUT_EXECUTION" ]] && echo true || echo false )" >> $GITHUB_ENV
 
     - name: install earthly
       uses: earthly/actions-setup@v1
@@ -81,11 +89,13 @@ jobs:
       env:
         EARTHLY_BUILD_ARGS: "CI_RUN=true"
         FORCE_COLOR: 1
+        INPUT_ENV: ${{ inputs.env }}
         SLACK_REF_NAME: ${{ github.event_name == 'schedule' && format('{0}/{1}', inputs.env, env.DEPLOYMENT_VERSION) || github.ref_name }}
         LOG_LEVEL: ${{ inputs.log_level }}
         KEYWORD: ${{ inputs.keyword }}
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         JOB_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        GH_REPOSITORY: ${{ github.repository }}
         LATEST_MC_EPOCH: ${{ (inputs.latest_mc_epoch == true) && true || false }}
         REPORT_TO_SLACK: ${{ github.ref == 'refs/heads/master' && 'true' || 'false' }}
         GITHUB_ACTOR_USERNAME: ${{ github.event_name == 'schedule' && 'nightly' || github.actor }}
@@ -110,9 +120,9 @@ jobs:
           --secret JIRA_URL="$JIRA_URL" \
           +report \
           --log_level="${LOG_LEVEL:-"info"}" \
-          --env=${{ inputs.env }} \
+          --env="${INPUT_ENV}" \
           --keyword="${KEYWORD:-"test_"}" \
-          --repository ${{ github.repository }} \
+          --repository "${GH_REPOSITORY}" \
           --job_url="$JOB_URL" \
           --slack_ref_name $SLACK_REF_NAME \
           --latest_mc_epoch=$LATEST_MC_EPOCH \

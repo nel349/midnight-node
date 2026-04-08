@@ -39,9 +39,13 @@ jobs:
       contents: write
     steps:
       - name: Validate Terms and Conditions
+        env:
+          INPUT_TERMS1: ${{ github.event.inputs.terms1 }}
+          INPUT_TERMS2: ${{ github.event.inputs.terms2 }}
+          INPUT_TERMS3: ${{ github.event.inputs.terms3 }}
         run: |
           echo "Validating terms and conditions..."
-          if [[ "${{ github.event.inputs.terms1 }}" != 'true' || "${{ github.event.inputs.terms2 }}" != 'true' || "${{ github.event.inputs.terms3 }}" != 'true' ]]; then
+          if [[ "$INPUT_TERMS1" != 'true' || "$INPUT_TERMS2" != 'true' || "$INPUT_TERMS3" != 'true' ]]; then
             echo "Please read and accept all Terms before running the deployment. Exiting..."
             exit 1
           fi
@@ -49,34 +53,39 @@ jobs:
 
       - name: Confirm Inputs and Evaluate Conditions
         id: evaluate-conditions
+        env:
+          INPUT_SUBSTRATE_NODE_IMAGE: ${{ github.event.inputs.substrate-node-image }}
+          INPUT_CHAIN_SPEC_SECRET_NAME: ${{ github.event.inputs.chain-spec-secret-name }}
+          INPUT_WIPE: ${{ github.event.inputs.wipe }}
+          INPUT_ROLLING: ${{ github.event.inputs.rolling }}
         run: |
           echo "Confirming inputs..."
           echo
-          echo "substrate-node-image: ${{ github.event.inputs.substrate-node-image }}"
-          echo "chain-spec-secret-name: ${{ github.event.inputs.chain-spec-secret-name }}"
-          echo "wipe: ${{ github.event.inputs.wipe }}"
-          echo "rolling: ${{ github.event.inputs.rolling }}"
+          echo "substrate-node-image: $INPUT_SUBSTRATE_NODE_IMAGE"
+          echo "chain-spec-secret-name: $INPUT_CHAIN_SPEC_SECRET_NAME"
+          echo "wipe: $INPUT_WIPE"
+          echo "rolling: $INPUT_ROLLING"
           echo "Evaluating Deployment Type..."
 
-          if [[ "${{ github.event.inputs.wipe }}" == 'true' ]]; then
+          if [[ "$INPUT_WIPE" == 'true' ]]; then
             echo "wipe=true" >> $GITHUB_ENV
           else
             echo "wipe=false" >> $GITHUB_ENV
           fi
 
-          if [[ "${{ github.event.inputs.rolling }}" == 'true' ]]; then
+          if [[ "$INPUT_ROLLING" == 'true' ]]; then
             echo "rolling=true" >> $GITHUB_ENV
           else
             echo "rolling=false" >> $GITHUB_ENV
           fi
 
-          if [[ "${{ github.event.inputs.wipe }}" == 'true' && "${{ github.event.inputs.chain-spec-secret-name }}" != '' && "${{ github.event.inputs.substrate-node-image }}" != '' ]]; then
+          if [[ "$INPUT_WIPE" == 'true' && "$INPUT_CHAIN_SPEC_SECRET_NAME" != '' && "$INPUT_SUBSTRATE_NODE_IMAGE" != '' ]]; then
             echo "deployment_type=1" >> $GITHUB_ENV
             echo "Step: Deploy with chain-spec and image override will be run"
-          elif [[ "${{ github.event.inputs.wipe }}" == 'false' && "${{ github.event.inputs.substrate-node-image }}" != '' ]]; then
+          elif [[ "$INPUT_WIPE" == 'false' && "$INPUT_SUBSTRATE_NODE_IMAGE" != '' ]]; then
             echo "deployment_type=2" >> $GITHUB_ENV
             echo "Step: Deploy with image override will be run"
-          elif [[ "${{ github.event.inputs.substrate-node-image }}" == '' ]]; then
+          elif [[ "$INPUT_SUBSTRATE_NODE_IMAGE" == '' ]]; then
             echo "deployment_type=3" >> $GITHUB_ENV
             echo "Step: Deploy from master with no value overrides will be run"
           else
@@ -103,10 +112,15 @@ jobs:
           sudo apt-get install helm
 
       - name: Configure kubectl
+        env:
+          KUBECONFIG_BASE64: ${{ secrets.kubeconfig_base64 }}
+          K8S_SERVER: ${{ secrets.K8S_SERVER }}
+          K8S_SA_TOKEN: ${{ secrets.K8S_SA_TOKEN }}
+          RUNNER_TEMP: ${{ runner.temp }}
         run: |
-          echo "${{ secrets.kubeconfig_base64 }}" | base64 --decode > ${{ runner.temp }}/kubeconfig.yaml
-          kubectl config set-cluster my-cluster --server=${{ secrets.K8S_SERVER }} --insecure-skip-tls-verify=true
-          kubectl config set-credentials github-actions --token=${{ secrets.K8S_SA_TOKEN }}
+          echo "$KUBECONFIG_BASE64" | base64 --decode > "$RUNNER_TEMP/kubeconfig.yaml"
+          kubectl config set-cluster my-cluster --server="$K8S_SERVER" --insecure-skip-tls-verify=true
+          kubectl config set-credentials github-actions --token="$K8S_SA_TOKEN"
           kubectl config set-context my-context --cluster=my-cluster --user=github-actions --namespace=default
           kubectl config use-context my-context
 
@@ -142,29 +156,34 @@ jobs:
 
       - name: Deploy with chain-spec and image override
         if: env.deployment_type == 1
+        env:
+          INPUT_SUBSTRATE_NODE_IMAGE: ${{ github.event.inputs.substrate-node-image }}
+          INPUT_CHAIN_SPEC_SECRET_NAME: ${{ github.event.inputs.chain-spec-secret-name }}
         run: |
           cd sidechains-infra-priv/src/kube/helm/partner-chains-node-chart/
-          helm upgrade --install alice . -f values/chains/devnet.yaml -f values/nodes/devnet/alice.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}" --set chain.chainspec_secretName="${{ github.event.inputs.chain-spec-secret-name }}"
-          helm upgrade --install bob . -f values/chains/devnet.yaml -f values/nodes/devnet/bob.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}" --set chain.chainspec_secretName="${{ github.event.inputs.chain-spec-secret-name }}"
-          helm upgrade --install charlie . -f values/chains/devnet.yaml -f values/nodes/devnet/charlie.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}" --set chain.chainspec_secretName="${{ github.event.inputs.chain-spec-secret-name }}"
-          helm upgrade --install dave . -f values/chains/devnet.yaml -f values/nodes/devnet/dave.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}" --set chain.chainspec_secretName="${{ github.event.inputs.chain-spec-secret-name }}"
-          helm upgrade --install eve . -f values/chains/devnet.yaml -f values/nodes/devnet/eve.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}" --set chain.chainspec_secretName="${{ github.event.inputs.chain-spec-secret-name }}"
-          helm upgrade --install ferdie . -f values/chains/devnet.yaml -f values/nodes/devnet/ferdie.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}" --set chain.chainspec_secretName="${{ github.event.inputs.chain-spec-secret-name }}"
-          helm upgrade --install greg . -f values/chains/devnet.yaml -f values/nodes/devnet/greg.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}" --set chain.chainspec_secretName="${{ github.event.inputs.chain-spec-secret-name }}"
-          helm upgrade --install henry . -f values/chains/devnet.yaml -f values/nodes/devnet/henry.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}" --set chain.chainspec_secretName="${{ github.event.inputs.chain-spec-secret-name }}"
+          helm upgrade --install alice . -f values/chains/devnet.yaml -f values/nodes/devnet/alice.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE" --set chain.chainspec_secretName="$INPUT_CHAIN_SPEC_SECRET_NAME"
+          helm upgrade --install bob . -f values/chains/devnet.yaml -f values/nodes/devnet/bob.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE" --set chain.chainspec_secretName="$INPUT_CHAIN_SPEC_SECRET_NAME"
+          helm upgrade --install charlie . -f values/chains/devnet.yaml -f values/nodes/devnet/charlie.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE" --set chain.chainspec_secretName="$INPUT_CHAIN_SPEC_SECRET_NAME"
+          helm upgrade --install dave . -f values/chains/devnet.yaml -f values/nodes/devnet/dave.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE" --set chain.chainspec_secretName="$INPUT_CHAIN_SPEC_SECRET_NAME"
+          helm upgrade --install eve . -f values/chains/devnet.yaml -f values/nodes/devnet/eve.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE" --set chain.chainspec_secretName="$INPUT_CHAIN_SPEC_SECRET_NAME"
+          helm upgrade --install ferdie . -f values/chains/devnet.yaml -f values/nodes/devnet/ferdie.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE" --set chain.chainspec_secretName="$INPUT_CHAIN_SPEC_SECRET_NAME"
+          helm upgrade --install greg . -f values/chains/devnet.yaml -f values/nodes/devnet/greg.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE" --set chain.chainspec_secretName="$INPUT_CHAIN_SPEC_SECRET_NAME"
+          helm upgrade --install henry . -f values/chains/devnet.yaml -f values/nodes/devnet/henry.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE" --set chain.chainspec_secretName="$INPUT_CHAIN_SPEC_SECRET_NAME"
 
       - name: Deploy with image override
         if: env.deployment_type == 2
+        env:
+          INPUT_SUBSTRATE_NODE_IMAGE: ${{ github.event.inputs.substrate-node-image }}
         run: |
           cd sidechains-infra-priv/src/kube/helm/partner-chains-node-chart/
-          helm upgrade --install alice . -f values/chains/devnet.yaml -f values/nodes/devnet/alice.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}"
-          helm upgrade --install bob . -f values/chains/devnet.yaml -f values/nodes/devnet/bob.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}"
-          helm upgrade --install charlie . -f values/chains/devnet.yaml -f values/nodes/devnet/charlie.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}"
-          helm upgrade --install dave . -f values/chains/devnet.yaml -f values/nodes/devnet/dave.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}"
-          helm upgrade --install eve . -f values/chains/devnet.yaml -f values/nodes/devnet/eve.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}"
-          helm upgrade --install ferdie . -f values/chains/devnet.yaml -f values/nodes/devnet/ferdie.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}"
-          helm upgrade --install greg . -f values/chains/devnet.yaml -f values/nodes/devnet/greg.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}"
-          helm upgrade --install henry . -f values/chains/devnet.yaml -f values/nodes/devnet/henry.yaml --set images.substrateNode="${{ github.event.inputs.substrate-node-image }}"
+          helm upgrade --install alice . -f values/chains/devnet.yaml -f values/nodes/devnet/alice.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE"
+          helm upgrade --install bob . -f values/chains/devnet.yaml -f values/nodes/devnet/bob.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE"
+          helm upgrade --install charlie . -f values/chains/devnet.yaml -f values/nodes/devnet/charlie.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE"
+          helm upgrade --install dave . -f values/chains/devnet.yaml -f values/nodes/devnet/dave.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE"
+          helm upgrade --install eve . -f values/chains/devnet.yaml -f values/nodes/devnet/eve.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE"
+          helm upgrade --install ferdie . -f values/chains/devnet.yaml -f values/nodes/devnet/ferdie.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE"
+          helm upgrade --install greg . -f values/chains/devnet.yaml -f values/nodes/devnet/greg.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE"
+          helm upgrade --install henry . -f values/chains/devnet.yaml -f values/nodes/devnet/henry.yaml --set images.substrateNode="$INPUT_SUBSTRATE_NODE_IMAGE"
 
       - name: Deploy from master with no value overrides
         if: env.deployment_type == 3
