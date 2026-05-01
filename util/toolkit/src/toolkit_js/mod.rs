@@ -354,7 +354,7 @@ impl ToolkitJs {
 		}
 		// Add positional args
 		cmd_args.push(&contract_address_str);
-		let mut new_authority = match command {
+		let mut new_authority = match &command {
 			MaintainCommand::Contract(MaintainContractArgs { new_authority, .. }) => {
 				Some(new_authority.as_bytes().encode_hex::<String>())
 			},
