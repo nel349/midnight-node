@@ -9910,6 +9910,7 @@ dependencies = [
  "sidechain-domain",
  "sp-core",
  "sp-io",
+ "sp-runtime",
  "tempfile",
  "test-log",
 ]
